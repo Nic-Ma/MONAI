@@ -107,12 +107,14 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Optional[Union[Sequence[Callable], Callable]] = None,
         map_items: bool = True,
         unpack_items: bool = False,
+        allow_missing_args: bool = False,
     ) -> None:
         if transforms is None:
             transforms = []
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
         self.unpack_items = unpack_items
+        self.allow_missing_args = allow_missing_args
         self.set_random_state(seed=get_seed())
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
@@ -157,6 +159,11 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_):
         for _transform in self.transforms:
+            if isinstance(input_, tuple) and self.unpack_items and self.allow_missing_args:
+                input_ - list(input_)
+                args = input_[0:min(_transform.__code__.argscount, len(input_)) + 1]
+                ret = apply_transform(_transform, tuple(args), self.map_items, unpack_items=True)
+                
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
         return input_
 

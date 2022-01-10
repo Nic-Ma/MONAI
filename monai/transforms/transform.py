@@ -30,7 +30,10 @@ ReturnType = TypeVar("ReturnType")
 
 
 def _apply_transform(
-    transform: Callable[..., ReturnType], parameters: Any, unpack_parameters: bool = False
+    transform: Callable[..., ReturnType],
+    parameters: Any,
+    unpack_parameters: bool = False,
+    allow_missing_args: bool = False,
 ) -> ReturnType:
     """
     Perform transformation `transform` with the provided parameters `parameters`.
@@ -48,6 +51,8 @@ def _apply_transform(
         ReturnType: The return type of `transform`.
     """
     if isinstance(parameters, tuple) and unpack_parameters:
+        if allow_missing_args:
+            parameters = parameters[0:min(transform.__code__.co_argcount, len(parameters)) + 1]
         return transform(*parameters)
 
     return transform(parameters)
