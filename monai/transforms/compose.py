@@ -107,6 +107,7 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Optional[Union[Sequence[Callable], Callable]] = None,
         map_items: bool = True,
         unpack_items: bool = False,
+        ignore_unexpected_args: bool = False,
         allow_missing_args: bool = False,
     ) -> None:
         if transforms is None:
@@ -114,6 +115,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
         self.unpack_items = unpack_items
+        self.ignore_unexpected_args = ignore_unexpected_args
         self.allow_missing_args = allow_missing_args
         self.set_random_state(seed=get_seed())
 
@@ -159,12 +161,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_):
         for _transform in self.transforms:
-            if isinstance(input_, tuple) and self.unpack_items and self.allow_missing_args:
-                input_ - list(input_)
-                args = input_[0:min(_transform.__code__.argscount, len(input_)) + 1]
-                ret = apply_transform(_transform, tuple(args), self.map_items, unpack_items=True)
-                
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.ignore_unexpected_args)
         return input_
 
     def inverse(self, data):
@@ -174,7 +171,7 @@ class Compose(Randomizable, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
+            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items, self.ignore_unexpected_args)
         return data
 
 
@@ -198,8 +195,10 @@ class OneOf(Compose):
         weights: Optional[Union[Sequence[float], float]] = None,
         map_items: bool = True,
         unpack_items: bool = False,
+        ignore_unexpected_args: bool = False,
+        allow_missing_args: bool = False,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items)
+        super().__init__(transforms, map_items, unpack_items, ignore_unexpected_args, allow_missing_args)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -239,8 +238,8 @@ class OneOf(Compose):
         if len(self.transforms) == 0:
             return data
         index = self.R.multinomial(1, self.weights).argmax()
-        _transform = self.transforms[index]
-        data = apply_transform(_transform, data, self.map_items, self.unpack_items)
+        trans = self.transforms[index]
+        data = apply_transform(trans, data, self.map_items, self.unpack_items, self.ignore_unexpected_args)
         # if the data is a mapping (dictionary), append the OneOf transform to the end
         if isinstance(data, Mapping):
             for key in data.keys():
@@ -266,6 +265,8 @@ class OneOf(Compose):
             # no invertible transforms have been applied
             return data
 
-        _transform = self.transforms[index]
+        trans = self.transforms[index]
         # apply the inverse
-        return _transform.inverse(data) if isinstance(_transform, InvertibleTransform) else data
+        if isinstance(trans, InvertibleTransform):
+            return apply_transform(trans.inverse, data, self.map_items, self.unpack_items, self.ignore_unexpected_args)
+        return data

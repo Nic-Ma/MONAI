@@ -15,7 +15,7 @@ A collection of generic interfaces for MONAI transforms.
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
-
+from types import FunctionType
 import numpy as np
 import torch
 
@@ -33,7 +33,7 @@ def _apply_transform(
     transform: Callable[..., ReturnType],
     parameters: Any,
     unpack_parameters: bool = False,
-    allow_missing_args: bool = False,
+    ignore_unexpected_args: bool = False,
 ) -> ReturnType:
     """
     Perform transformation `transform` with the provided parameters `parameters`.
@@ -46,20 +46,30 @@ def _apply_transform(
         transform: a callable to be used to transform `data`.
         parameters: parameters for the `transform`.
         unpack_parameters: whether to unpack parameters for `transform`. Defaults to False.
+        ignore_unexpected_args: when unpack_parameters and number of parameters is more than function args,
+            whether to ignore unexpected args, default to False.
 
     Returns:
         ReturnType: The return type of `transform`.
     """
     if isinstance(parameters, tuple) and unpack_parameters:
-        if allow_missing_args:
-            parameters = parameters[0:min(transform.__code__.co_argcount, len(parameters)) + 1]
+        if ignore_unexpected_args:
+            if isinstance(transform, FunctionType):
+                arg_count = transform.__code__.co_argcount
+            else:
+                arg_count = transform.__call__.__code__.co_argcount - 1  # reduce the `self` arg
+            parameters = parameters[0:min(arg_count, len(parameters))]
         return transform(*parameters)
 
     return transform(parameters)
 
 
 def apply_transform(
-    transform: Callable[..., ReturnType], data: Any, map_items: bool = True, unpack_items: bool = False
+    transform: Callable[..., ReturnType],
+    data: Any,
+    map_items: bool = True,
+    unpack_items: bool = False,
+    ignore_unexpected_args: bool = False,
 ) -> Union[List[ReturnType], ReturnType]:
     """
     Transform `data` with `transform`.
@@ -74,6 +84,8 @@ def apply_transform(
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
+        ignore_unexpected_args: when unpack_parameters and number of parameters is more than function args,
+            whether to ignore unexpected args, default to False.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -83,8 +95,8 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items) for item in data]
-        return _apply_transform(transform, data, unpack_items)
+            return [_apply_transform(transform, item, unpack_items, ignore_unexpected_args) for item in data]
+        return _apply_transform(transform, data, unpack_items, ignore_unexpected_args)
     except Exception as e:
 
         if not isinstance(transform, transforms.compose.Compose):

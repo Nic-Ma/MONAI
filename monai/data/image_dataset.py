@@ -39,6 +39,7 @@ class ImageDataset(Dataset, Randomizable):
         seg_transform: Optional[Callable] = None,
         image_only: bool = True,
         transform_with_metadata: bool = False,
+        ignore_unexpected_args: bool = False,
         dtype: DtypeLike = np.float32,
         reader: Optional[Union[ImageReader, str]] = None,
         *args,
@@ -56,6 +57,8 @@ class ImageDataset(Dataset, Randomizable):
             seg_transform: transform to apply to segmentation arrays
             image_only: if True return only the image volume, otherwise, return image volume and the metadata
             transform_with_metadata: if True, the metadata will be passed to the transforms whenever possible.
+            ignore_unexpected_args: when unpacking image and metadata as args for transform, and number of parameters
+                is more than function args, whether to ignore unexpected args, default to False.
             dtype: if not None convert the loaded image to this data type
             reader: register reader to load image file and meta data, if None, will use the default readers.
                 If a string of reader name provided, will construct a reader object with the `*args` and `**kwargs`
@@ -83,6 +86,7 @@ class ImageDataset(Dataset, Randomizable):
             raise ValueError("transform_with_metadata=True requires image_only=False.")
         self.image_only = image_only
         self.transform_with_metadata = transform_with_metadata
+        self.ignore_unexpected_args = ignore_unexpected_args
         self.loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         self.set_random_state(seed=get_seed())
         self._seed = 0  # transform synchronization seed
@@ -113,7 +117,13 @@ class ImageDataset(Dataset, Randomizable):
                 self.transform.set_random_state(seed=self._seed)
 
             if self.transform_with_metadata:
-                img, meta_data = apply_transform(self.transform, (img, meta_data), map_items=False, unpack_items=True)
+                img, meta_data = apply_transform(
+                    transform=self.transform,
+                    data=(img, meta_data),
+                    map_items=False,
+                    unpack_items=True,
+                    ignore_unexpected_args=self.ignore_unexpected_args,
+                )
             else:
                 img = apply_transform(self.transform, img, map_items=False)
 
@@ -123,7 +133,11 @@ class ImageDataset(Dataset, Randomizable):
 
             if self.transform_with_metadata:
                 seg, seg_meta_data = apply_transform(
-                    self.seg_transform, (seg, seg_meta_data), map_items=False, unpack_items=True
+                    transform=self.seg_transform,
+                    data=(seg, seg_meta_data),
+                    map_items=False,
+                    unpack_items=True,
+                    ignore_unexpected_args=self.ignore_unexpected_args,
                 )
             else:
                 seg = apply_transform(self.seg_transform, seg, map_items=False)

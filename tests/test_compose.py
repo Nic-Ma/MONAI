@@ -81,12 +81,12 @@ class TestCompose(unittest.TestCase):
 
     def test_non_dict_compose_with_unpack(self):
         def a(i, i2):
-            return i + "a", i2 + "a2"
+            return i + "a", i2 + "a2", 100  # `100` to test ignore unexpected args
 
         def b(i, i2):
             return i + "b", i2 + "b2"
 
-        c = Compose([a, b, a, b], map_items=False, unpack_items=True)
+        c = Compose([a, b, a, b], map_items=False, unpack_items=True, ignore_unexpected_args=True)
         self.assertEqual(c(("", "")), ("abab", "a2b2a2b2"))
 
     def test_list_non_dict_compose_with_unpack(self):
