@@ -10,12 +10,9 @@
 # limitations under the License.
 
 import os
-import shutil
 from copy import deepcopy
-from glob import glob
-from typing import Sequence, Union
-
 from monai.apps.auto3dseg import BundleAlgo
+from monai.bundle import ConfigParser
 
 
 class Segresnet2DAlgo(BundleAlgo):
@@ -78,5 +75,10 @@ class Segresnet2DAlgo(BundleAlgo):
                         self.cfg[f"{key}#transforms#{idx}"] = deepcopy(ct_intensity_xform)
                     else:
                         self.cfg[f"{key}#transforms#{idx}"] = deepcopy(mr_intensity_transform)
-        # self.algorithm_dir = os.path.join(self.output_path, "segresnet2d")
-        # self.inference_script = "scripts/infer.py"
+
+
+if __name__ == "__main__":
+    from monai.utils import optional_import
+
+    fire, _ = optional_import("fire")
+    fire.Fire({"Segresnet2DAlgo": Segresnet2DAlgo})
