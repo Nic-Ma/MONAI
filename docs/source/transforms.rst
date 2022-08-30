@@ -530,6 +530,14 @@ Post-processing
     :members:
     :special-members: __call__
 
+`RemoveSmallObjects`
+""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjects.png
+    :alt: example of RemoveSmallObjects
+.. autoclass:: RemoveSmallObjects
+    :members:
+    :special-members: __call__
+
 `LabelFilter`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelFilter.png
@@ -797,6 +805,23 @@ Smooth Field
 .. autoclass:: RandSmoothDeform
     :members:
     :special-members: __call__
+
+
+MRI Transforms
+^^^^^^^^^^^^^^
+
+`Kspace under-sampling`
+"""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.array.KspaceMask
+    :members:
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.array.RandomKspaceMask
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.array.EquispacedKspaceMask
+    :special-members: __call__
+
 
 Utility
 ^^^^^^^
@@ -1420,6 +1445,14 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`RemoveSmallObjectsd`
+"""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjectsd.png
+    :alt: example of RemoveSmallObjectsd
+.. autoclass:: RemoveSmallObjectsd
+    :members:
+    :special-members: __call__
+
 `LabelFilterd`
 """"""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelFilterd.png
@@ -1682,6 +1715,34 @@ Smooth Field (Dict)
 .. autoclass:: RandSmoothDeformd
     :members:
     :special-members: __call__
+
+
+`MRI transforms (Dict)`
+^^^^^^^^^^^^^^^^^^^^^^^
+
+`Kspace under-sampling (Dict)`
+""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.RandomKspaceMaskd
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.EquispacedKspaceMaskd
+    :special-members: __call__
+
+`ExtractDataKeyFromMetaKeyd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ExtractDataKeyFromMetaKeyd
+    :special-members: __call__
+
+`ReferenceBasedSpatialCropd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedSpatialCropd
+    :special-members: __call__
+
+`ReferenceBasedNormalizeIntensityd`
+"""""""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedNormalizeIntensityd
+    :special-members: __call__
+
 
 Utility (Dict)
 ^^^^^^^^^^^^^^
