@@ -470,7 +470,10 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 config_file=config_eval_files, meta_file=None, logging_file=None, workflow="train"
             )
         if self.eval_workflow is not None:
-            if self.multi_gpu and not dist.is_initialized():
+            if self.multi_gpu:
+                if not dist.is_initialized():
+                    self.eval_workflow.initialize()
+            else:
                 self.eval_workflow.initialize()
             self.eval_workflow.bundle_root = self.bundle_root
             if self.tracking is not None and isinstance(self.eval_workflow, ConfigWorkflow):
@@ -700,7 +703,11 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if self.train_workflow is not None:
             self.train_workflow.finalize()
         if self.eval_workflow is not None:
-            self.eval_workflow.finalize()
+            if self.multi_gpu:
+                if dist.is_initialized():
+                    self.eval_workflow.finalize()
+            else:
+                self.eval_workflow.finalize()
 
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
