@@ -15,7 +15,9 @@ import os
 from collections.abc import Mapping, MutableMapping
 from typing import Any, cast
 
+import logging
 import torch
+import torch.distributed as dist
 
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.utils import get_logger
@@ -334,6 +336,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
             If all state dicts should be returned, set `save_dict_key` to None.
         data_stats_transform_list: transforms to apply for the data stats result.
+        multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
         tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
             it expects the `train_workflow` or `eval_workflow` to be `ConfigWorkflow`, not customized `BundleWorkflow`.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
@@ -360,6 +363,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         final_model_filepath: str | None = "models/model_final.pt",
         save_dict_key: str | None = "model",
         data_stats_transform_list: list | None = None,
+        multi_gpu: bool = True,
         tracking: str | dict | None = None,
     ):
         self.logger = logger
@@ -389,6 +393,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
         self.save_dict_key = save_dict_key
         self.data_stats_transform_list = data_stats_transform_list
+        self.multi_gpu = multi_gpu
         self.tracking = tracking
 
         self.app_root = ""
@@ -404,6 +409,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.phase = FlPhase.IDLE
         self.client_name = None
         self.dataset_root = None
+        self.rank = 0
 
     def initialize(self, extra=None):
         """
@@ -414,10 +420,20 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
 
         """
+
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         self.logger.info(f"Initializing {self.client_name} ...")
+
+        if self.multi_gpu:
+            self._set_cuda_device()
+            self.logger.info(
+                f"Using multi-gpu training on rank {self.rank} (available devices: {torch.cuda.device_count()})"
+            )
+            if self.rank > 0:
+                self.logger.setLevel(logging.WARNING)
+
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
@@ -454,7 +470,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 config_file=config_eval_files, meta_file=None, logging_file=None, workflow="train"
             )
         if self.eval_workflow is not None:
-            self.eval_workflow.initialize()
+            if self.multi_gpu and not dist.is_initialized():
+                self.eval_workflow.initialize()
             self.eval_workflow.bundle_root = self.bundle_root
             if self.tracking is not None and isinstance(self.eval_workflow, ConfigWorkflow):
                 ConfigWorkflow.patch_bundle_tracking(parser=self.eval_workflow.parser, settings=settings_)
@@ -495,6 +512,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             extra: Dict with additional information that can be provided by the FL system.
 
         """
+        self._set_cuda_device()
 
         if extra is None:
             extra = {}
@@ -537,6 +555,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
+        self._set_cuda_device()
 
         if extra is None:
             extra = {}
@@ -615,6 +634,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             return_metrics: `ExchangeObject` containing evaluation metrics.
 
         """
+        self._set_cuda_device()
 
         if extra is None:
             extra = {}
@@ -691,3 +711,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.logger.info(
                 f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
             )
+
+    def _set_cuda_device(self):
+        if self.multi_gpu:
+            self.rank = int(os.environ["LOCAL_RANK"])
+            torch.cuda.set_device(self.rank)
