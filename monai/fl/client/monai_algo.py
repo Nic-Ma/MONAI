@@ -363,7 +363,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         final_model_filepath: str | None = "models/model_final.pt",
         save_dict_key: str | None = "model",
         data_stats_transform_list: list | None = None,
-        multi_gpu: bool = True,
+        multi_gpu: bool = False,
         tracking: str | dict | None = None,
     ):
         self.logger = logger
