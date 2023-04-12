@@ -405,6 +405,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.phase = FlPhase.IDLE
         self.client_name = None
         self.dataset_root = None
+        self.rank = 0
 
     def initialize(self, extra=None):
         """
