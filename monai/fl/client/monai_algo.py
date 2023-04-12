@@ -16,6 +16,7 @@ from collections.abc import Mapping, MutableMapping
 from typing import Any, cast
 
 import torch
+import torch.distributed as dist
 
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.apps.utils import get_logger
@@ -414,6 +415,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
 
         """
+        self._set_cuda_device()
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
@@ -495,7 +497,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             extra: Dict with additional information that can be provided by the FL system.
 
         """
-
+        self._set_cuda_device()
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -537,7 +539,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
-
+        self._set_cuda_device()
         if extra is None:
             extra = {}
 
@@ -615,7 +617,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             return_metrics: `ExchangeObject` containing evaluation metrics.
 
         """
-
+        self._set_cuda_device()
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -691,3 +693,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.logger.info(
                 f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
             )
+
+    def _set_cuda_device(self):
+        if dist.is_initialized():
+            self.rank = int(os.environ["LOCAL_RANK"])
+            torch.cuda.set_device(self.rank)
